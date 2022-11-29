@@ -3,6 +3,7 @@ import tqdm
 import sys
 
 from typing import Callable, List, Dict, Optional
+from joblib import delayed, Parallel
 
 from pyDataverse.api import DataAccessApi
 from easyDataverse.core.file import File
@@ -87,46 +88,52 @@ def download_files(
         files_list = tqdm.tqdm(files_list, file=sys.stdout)
         files_list.set_description(f"Downloading data files")
 
-    for file in files_list:
+    Parallel(n_jobs=-1)(
+        delayed(_fetch_single_file)
+        (dataset, file, filenames, filedir, data_api)
+        for file in files_list
+    )
 
-        # Get file metdata
-        filename = file["dataFile"]["filename"]
-        file_pid = file["dataFile"]["id"]
 
-        if filenames is not None and filename not in filenames:
-            # Just download the necessary files
-            continue
+def _fetch_single_file(dataset, file: Dict, filenames: List, filedir: str, data_api):
 
-        description = file["dataFile"].get("description")
-        directory_label = file.get("directoryLabel")
+    # Get file metdata
+    filename = file["dataFile"]["filename"]
+    file_pid = file["dataFile"]["id"]
 
-        if filedir is not None:
-            # Get the content
+    if filenames is not None and filename not in filenames:
+        # Just download the necessary files
+        return
 
-            response = data_api.get_datafile(file_pid)
+    description = file["dataFile"].get("description")
+    directory_label = file.get("directoryLabel")
 
-            if response.status_code != 200:
-                raise FileNotFoundError(f"No content found for file {filename}.")
+    if filedir is not None:
+        # Get the content
+        response = data_api.get_datafile(file_pid)
 
-            # Create local path for later upload
-            if directory_label:
-                filename = os.path.join(directory_label, filename)
+        if response.status_code != 200:
+            raise FileNotFoundError(f"No content found for file {filename}.")
 
-            local_path = os.path.join(filedir, filename)
+        # Create local path for later upload
+        if directory_label:
+            filename = os.path.join(directory_label, filename)
 
-            # Write content to local file
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
-            with open(local_path, "wb") as f:
-                f.write(response.content)
-        else:
-            local_path = None
+        local_path = os.path.join(filedir, filename)
 
-        # Create the file object
-        datafile = File(
-            filename=filename,
-            description=description,
-            local_path=local_path,
-            file_pid=file_pid,
-        )
+        # Write content to local file
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        with open(local_path, "wb") as f:
+            f.write(response.content)
+    else:
+        local_path = None
 
-        dataset.files.append(datafile)
+    # Create the file object
+    datafile = File(
+        filename=filename,
+        description=description,
+        local_path=local_path,
+        file_pid=file_pid,
+    )
+
+    dataset.files.append(datafile)

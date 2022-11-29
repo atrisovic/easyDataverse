@@ -17,6 +17,7 @@ setup(
         "jinja2",
         "pydataverse",
         "pandas",
+        "joblib",
         "datamodel_code_generator",
         "pyaml",
         "coloredlogs",
