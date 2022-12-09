@@ -245,7 +245,7 @@ def _generate_add_method(target_cls, field):
     return forge.sign(
         forge.self,
         *[
-            forge.kwarg(name, type=dtype, default=forge.empty)
+            forge.kwarg(name.replace("-", "_"), type=dtype, default=forge.empty)
             for name, dtype in target_cls.__annotations__.items()
         ],
         forge.kwarg("_target_cls", default=target_cls, bound=True),
@@ -285,7 +285,10 @@ def populate_block_values(block_cls: DataverseBase, block_json: Dict):
 
     for field in block_json:
         field_type = field["typeClass"]
-        attr_name = _find_attribute(block_cls, field["typeName"])
+        attr_name = field_name = _find_attribute(block_cls, field["typeName"])
+
+        if "-" in field_name:
+            field_name = field_name.replace("-", "_")
 
         if field_type == "compound":
 
@@ -296,10 +299,10 @@ def populate_block_values(block_cls: DataverseBase, block_json: Dict):
                     for name, compound in entry.items()
                 }
 
-                block_cls.__dict__[attr_name].append(sub_class(**kwargs))
+                block_cls.__dict__[field_name].append(sub_class(**kwargs))
 
         else:
-            block_cls.__dict__[attr_name] = field["value"]
+            block_cls.__dict__[field_name] = field["value"]
 
 
 def _find_attribute(block, typeName):
