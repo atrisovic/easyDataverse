@@ -88,7 +88,7 @@ def download_files(
         files_list = tqdm.tqdm(files_list, file=sys.stdout)
         files_list.set_description(f"Downloading data files")
 
-    Parallel(n_jobs=-1)(
+    Parallel(n_jobs=-1, backend="threading")(
         delayed(_fetch_single_file)
         (dataset, file, filenames, filedir, data_api)
         for file in files_list
